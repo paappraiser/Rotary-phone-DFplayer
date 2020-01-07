@@ -1,0 +1,303 @@
+/* Basic Digital Read and Rotary Phone Dial Reader
+ * ------------------ 
+ * This code reads whether the phone is on the hook by treating that hook like a button that is either open or depressed
+AND it reads out the number dialed on a rotary phone dial by counting the pulses made by the spinning dial wheel. 
+For wiring and hardware details, visit my instructible page. 
+ 
+ */
+//#include "MotorDriver.h"
+
+#include "Arduino.h"
+#include "SoftwareSerial.h"
+#include "DFRobotDFPlayerMini.h"
+
+SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
+DFRobotDFPlayerMini myDFPlayer;
+void printDetail(uint8_t type, int value);
+
+ 
+#define INITPIN 6
+#define NUMPIN 5
+
+int sensorPin = A0;  // Hello pine
+int sensorValue = 0;  // variable to store the value coming from the sensor
+int sensorValueb = 0;
+int e=0; //escape loop
+
+int jokeStart = 60;
+int jokeEnd = 71;
+int joke = 60;
+
+int randomTime; //  random time to ring
+int randomStart; // random time start
+int randomEnd;  // random time end
+
+
+int counter; // holds the pulse count for each dial spin
+int currentValue = 0; 
+long lastDebounceTime = 0;  // the last time the output pin was toggled
+long debounceDelay = 5;    // the debounce time; increase if the output flickers
+ 
+int inPin = 4;   // choose the input pin (for a pushbutton)
+int val = 0;     // variable for reading the pin status
+boolean flag, flag2, flag3; 
+
+unsigned long time;
+
+
+void setup(){
+ Serial.begin(9600);
+  mySoftwareSerial.begin(9600);
+    Serial.println();
+  Serial.println(F("DFRobot DFPlayer Mini Demo"));
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)"));
+  if (!myDFPlayer.begin(mySoftwareSerial)) {  //Use softwareSerial to communicate with mp3.
+    Serial.println(F("Unable to begin:"));
+    Serial.println(F("1.Please recheck the connection!"));
+    Serial.println(F("2.Please insert the SD card!"));
+    while(true);
+  }
+  Serial.println(F("DFPlayer Mini online."));
+
+   myDFPlayer.volume(10);  //Set volume value. From 0 to 30
+    
+randomTime=10000; // Sets inital random time  to ring
+  randomStart = 10000; // random time start  to ring
+    randomEnd = 30000;  // random time end to ring 
+  
+  //configure the dial reading inputs 
+  pinMode(INITPIN, INPUT_PULLUP);
+  pinMode(NUMPIN, INPUT_PULLUP);
+     pinMode(13, OUTPUT);
+
+ 
+ pinMode(inPin, INPUT);    // declare phone hook as input
+
+
+ }
+// 001.mp3 dialtone
+// 009.Mp3  8675309
+
+void loop(){  
+  
+  time = millis();
+  flag = false;
+  flag2 = false;
+   flag3 = false;
+ // Serial.println("flag3");
+//Serial.println(flag3);
+//Serial.println("flag");
+//Serial.println(flag);
+  
+  stopOperator();
+  
+// the below code waits for a set number of minutes and says flag= true if someone has picked up the phone  
+  do{  if (digitalRead(inPin) == LOW){
+    flag = true; // 
+    break;
+  }
+  }
+   while (millis()<(time+randomTime)); // while (millis()<(time+420000L));
+  
+ Serial.println(randomTime);
+ 
+ if (flag == true){
+  
+   Serial.println("play dialtone"); // tell processing to turn on operator voice
+    myDFPlayer.playMp3Folder(1);  
+         randomTime = random(randomStart,randomEnd); // Random time start here. 
+
+           
+   do { if (digitalRead (INITPIN) == LOW) { //if the wheel starts turning
+           if (flag3 == false){  stopOperator2();};
+               Serial.println("read loop");
+                 readNumber(); //read and react to the numbers
+               
+                 }
+                 
+   } while (digitalRead(inPin) == LOW); //while the phone is off the hook
+ }
+ 
+ else (flag2 = ring());   
+ 
+ if (flag2 == true){
+   Serial.println("play greeting"); // tell processing to turn on greeting voice
+   myDFPlayer.playMp3Folder(50); 
+helloMe();
+     myDFPlayer.playMp3Folder(jokeStart); 
+
+   do { if (digitalRead (INITPIN) == LOW) { //if the wheel starts turning
+                 stopOperator();  //stop the operator voice
+                 readNumber(); //read and react to the numbers
+                 }
+                 
+   } while (digitalRead(inPin) == LOW); //while the phone is off the hook
+ }
+
+/* 
+    do { stopOperator(); } //when the phone is on the hook, don't play the operator's voice (or the dial tone)
+      while (digitalRead(inPin) == HIGH ); // wait for phone to be picked up for the first time
+      delay(100); // wait 100 milliseconds
+   Serial.println("play operator"); // tell processing to turn on operator voice
+   
+   do { if (digitalRead (INITPIN) == LOW) { //if the wheel starts turning
+                 stopOperator();  //stop the operator voice
+                 readNumber(); //read and react to the numbers
+                 }
+                 
+   } while (digitalRead(inPin) == LOW); //while the phone is off the hook
+ 
+*/
+
+}
+
+
+void helloMe(){
+delay(100);
+jokeStart++;
+if (jokeStart >= jokeEnd){jokeStart = joke;};
+ Serial.println(jokeStart);
+  Serial.println("joke numnber");
+
+  sensorValue = analogRead(sensorPin);  
+   delay(20);
+     Serial.println("do loop start ");
+   sensorValueb = (sensorValue*1.20);
+   
+ while (sensorValueb>sensorValue) { 
+  sensorValue = analogRead(sensorPin);
+   delay(40);
+     Serial.println("do loop");
+      // Serial.print(e);
+   sensorValueb = (sensorValue*1.20);
+    delay(40);
+   sensorValue = analogRead(sensorPin);
+ if (digitalRead (inPin) == HIGH) {
+  //myDFPlayer.stop();
+sensorValue=2000;
+ // break;
+ }
+
+   }
+    myDFPlayer.stop();
+ Serial.println("do loop end");
+   //put plus one here? 
+   delay(50);
+ }
+      
+void stopOperator2(){
+
+  Serial.println("df player stop");
+   myDFPlayer.stop();
+  flag3 = true;
+  }
+
+
+
+void stopOperator(){
+
+ 
+  Serial.println("stop operator 1"); 
+   Serial.println(randomTime);
+  myDFPlayer.stop(); 
+  }
+
+
+void endRecording(){
+  Serial.println("stop recording");
+    myDFPlayer.stop(); 
+}
+
+
+void readNumber(){
+  int initRead = digitalRead (INITPIN); // Is the wheel turning or not?
+  static int lastValue = HIGH;  // holds the last read from the pulse pin.
+
+  if (initRead == LOW) {  // If the wheel is turning....
+
+    int newValue = digitalRead (NUMPIN); // check the pulse pin.
+    if (newValue != lastValue) { // if it's CHANGED from the last read...
+      lastDebounceTime = millis(); // save its clock cycle; we need to check it.
+    }
+    // If enough time has passed (aka, it's not just a "bounce" from the 
+    // analog signal)...
+    if ((millis() - lastDebounceTime) > debounceDelay) { 
+      // and if the current value is DIFFERENT than the one you just read...
+      if (currentValue != newValue) { 
+        currentValue = newValue; // make them the same.
+        if (newValue == 1) { // If you just set it to a 1...
+          counter++; // it just finished a pulse, so add one to the counter.
+        }
+      }
+    }
+
+    lastValue = newValue; // Your new value becomes the old one for comparison.
+
+  } else {
+// once the dial returns home and switches the initializing pin OFF,
+// you can be sure that there will be no more pulses coming.
+// "Counter" is the number dialed. You may now use it for whatever you want.
+// This is adjusted for the special case of "0" actually being 10 pulses.
+  
+    if (counter > 0 && val!=HIGH) {
+      if (counter == 10) {
+      Serial.println (0);
+      Serial.println ("record question");
+      } 
+      
+      else if(counter == 4) {      // if the number is six
+        Serial.println (counter);
+            Serial.println("joke");             // play something
+         myDFPlayer.playMp3Folder(4); 
+         }
+      else if (counter == 7) {    // if the number is seven
+        Serial.println (counter);
+            Serial.println("record"); //record
+                      
+      }
+      
+        else if (counter == 9) {   
+          Serial.println (counter);
+            Serial.println("8675309"); 
+     myDFPlayer.playMp3Folder(9); 
+      }
+      else {
+        Serial.println (counter);
+      }     
+      
+// After you're done using it, reset counter so it can start again on the
+// next dial.
+  counter = 0;   
+  }
+ 
+}
+}
+
+boolean ring()
+{
+ int i; 
+ int r;
+ 
+ for(r=0;r<5;r++) {
+ 
+   for(i=0;i<20;i++){ 
+ digitalWrite(13,HIGH);
+  delay(40);
+          Serial.println ("ring" );
+
+ //  pin 13 motordriver.stop();
+ digitalWrite(13,LOW);
+  delay(40);
+
+  if (digitalRead(inPin) == LOW) return true;
+
+   }
+   for(i=0;i<40;i++) {delay(100);
+  if (digitalRead(inPin) == LOW) return true;
+
+ }
+ }
+ 
+ return false;
+ 
+}
